@@ -26,14 +26,16 @@ public class SharePlugin extends Plugin {
 
     @Override
     public void load() {
-        broadcastReceiver =
-            new BroadcastReceiver() {
-                @Override
-                public void onReceive(Context context, Intent intent) {
-                    chosenComponent = intent.getParcelableExtra(Intent.EXTRA_CHOSEN_COMPONENT);
-                }
-            };
-        getActivity().registerReceiver(broadcastReceiver, new IntentFilter(Intent.EXTRA_CHOSEN_COMPONENT));
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+            broadcastReceiver =
+                new BroadcastReceiver() {
+                    @Override
+                    public void onReceive(Context context, Intent intent) {
+                        chosenComponent = intent.getParcelableExtra(Intent.EXTRA_CHOSEN_COMPONENT);
+                    }
+                };
+            getActivity().registerReceiver(broadcastReceiver, new IntentFilter(Intent.EXTRA_CHOSEN_COMPONENT));
+        }
     }
 
     @ActivityCallback
@@ -91,36 +93,36 @@ public class SharePlugin extends Plugin {
                     type = "*/*";
                 }
                 intent.setType(type);
-                try {
-                    Uri fileUrl = FileProvider.getUriForFile(
-                        getActivity(),
-                        getContext().getPackageName() + ".fileprovider",
-                        new File(Uri.parse(url).getPath())
-                    );
-                    intent.putExtra(Intent.EXTRA_STREAM, fileUrl);
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        intent.setDataAndType(fileUrl, type);
-                    }
-                } catch (Exception ex) {
-                    call.reject(ex.getLocalizedMessage());
-                    return;
+                Uri fileUrl = FileProvider.getUriForFile(
+                    getActivity(),
+                    getContext().getPackageName() + ".fileprovider",
+                    new File(Uri.parse(url).getPath())
+                );
+                intent.putExtra(Intent.EXTRA_STREAM, fileUrl);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    intent.setData(fileUrl);
                 }
-
                 intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             }
 
             if (title != null) {
                 intent.putExtra(Intent.EXTRA_SUBJECT, title);
             }
-            int flags = PendingIntent.FLAG_UPDATE_CURRENT;
-            if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                flags = flags | PendingIntent.FLAG_MUTABLE;
-            }
 
-            // requestCode parameter is not used. Providing 0
-            PendingIntent pi = PendingIntent.getBroadcast(getContext(), 0, new Intent(Intent.EXTRA_CHOSEN_COMPONENT), flags);
-            Intent chooser = Intent.createChooser(intent, dialogTitle, pi.getIntentSender());
-            chosenComponent = null;
+            Intent chooser = null;
+            if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+                // requestCode parameter is not used. Providing 0
+                PendingIntent pi = PendingIntent.getBroadcast(
+                    getContext(),
+                    0,
+                    new Intent(Intent.EXTRA_CHOSEN_COMPONENT),
+                    PendingIntent.FLAG_UPDATE_CURRENT
+                );
+                chooser = Intent.createChooser(intent, dialogTitle, pi.getIntentSender());
+                chosenComponent = null;
+            } else {
+                chooser = Intent.createChooser(intent, dialogTitle);
+            }
             chooser.addCategory(Intent.CATEGORY_DEFAULT);
             stopped = false;
             isPresenting = true;

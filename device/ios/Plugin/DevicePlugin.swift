@@ -16,12 +16,8 @@ public class DevicePlugin: CAPPlugin {
     }
     @objc func getInfo(_ call: CAPPluginCall) {
         var isSimulator = false
-        var modelName = ""
         #if targetEnvironment(simulator)
         isSimulator = true
-        modelName = ProcessInfo().environment["SIMULATOR_MODEL_IDENTIFIER"] ?? "Simulator"
-        #else
-        modelName = implementation.getModelName()
         #endif
 
         let memUsed = implementation.getMemoryUsage()
@@ -36,7 +32,7 @@ public class DevicePlugin: CAPPlugin {
             "realDiskFree": realDiskFree,
             "realDiskTotal": diskTotal,
             "name": UIDevice.current.name,
-            "model": modelName,
+            "model": UIDevice.current.model,
             "operatingSystem": "ios",
             "osVersion": UIDevice.current.systemVersion,
             "platform": "ios",
@@ -61,13 +57,6 @@ public class DevicePlugin: CAPPlugin {
         let code = implementation.getLanguageCode()
         call.resolve([
             "value": code
-        ])
-    }
-
-    @objc func getLanguageTag(_ call: CAPPluginCall) {
-        let tag = implementation.getLanguageTag()
-        call.resolve([
-            "value": tag
         ])
     }
 

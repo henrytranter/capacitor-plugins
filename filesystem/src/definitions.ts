@@ -371,50 +371,7 @@ export interface ReaddirResult {
    *
    * @since 1.0.0
    */
-  files: FileInfo[];
-}
-
-export interface FileInfo {
-  /**
-   * Name of the file or directory.
-   */
-  name: string;
-  /**
-   * Type of the file.
-   *
-   * @since 4.0.0
-   */
-  type: 'directory' | 'file';
-
-  /**
-   * Size of the file in bytes.
-   *
-   * @since 4.0.0
-   */
-  size: number;
-
-  /**
-   * Time of creation in milliseconds.
-   *
-   * It's not available on Android 7 and older devices.
-   *
-   * @since 4.0.0
-   */
-  ctime?: number;
-
-  /**
-   * Time of last modification in milliseconds.
-   *
-   * @since 4.0.0
-   */
-  mtime: number;
-
-  /**
-   * The uri of the file.
-   *
-   * @since 4.0.0
-   */
-  uri: string;
+  files: string[];
 }
 
 export interface GetUriResult {
@@ -428,14 +385,14 @@ export interface GetUriResult {
 
 export interface StatResult {
   /**
-   * Type of the file.
+   * Type of the file
    *
    * @since 1.0.0
    */
-  type: 'directory' | 'file';
+  type: string;
 
   /**
-   * Size of the file in bytes.
+   * Size of the file
    *
    * @since 1.0.0
    */
@@ -461,15 +418,6 @@ export interface StatResult {
    * The uri of the file
    *
    * @since 1.0.0
-   */
-  uri: string;
-}
-
-export interface CopyResult {
-  /**
-   * The uri where the file was copied into
-   *
-   * @since 4.0.0
    */
   uri: string;
 }
@@ -550,7 +498,7 @@ export interface FilesystemPlugin {
    *
    * @since 1.0.0
    */
-  copy(options: CopyOptions): Promise<CopyResult>;
+  copy(options: CopyOptions): Promise<void>;
 
   /**
    * Check read/write permissions.

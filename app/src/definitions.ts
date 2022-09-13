@@ -139,7 +139,7 @@ export interface AppPlugin {
    *
    * @since 1.0.0
    */
-  exitApp(): Promise<void>;
+  exitApp(): never;
 
   /**
    * Return information about the app.

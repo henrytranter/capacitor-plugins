@@ -7,7 +7,6 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.util.WebColor;
-import java.util.Locale;
 
 @CapacitorPlugin(name = "SplashScreen")
 public class SplashScreenPlugin extends Plugin {
@@ -104,7 +103,7 @@ public class SplashScreenPlugin extends Plugin {
         if (spinnerStyle != null) {
             int spinnerBarStyle = android.R.attr.progressBarStyleLarge;
 
-            switch (spinnerStyle.toLowerCase(Locale.ROOT)) {
+            switch (spinnerStyle.toLowerCase()) {
                 case "horizontal":
                     spinnerBarStyle = android.R.attr.progressBarStyleHorizontal;
                     break;

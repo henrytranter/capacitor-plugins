@@ -63,7 +63,7 @@ App.addListener('appRestoredResult', data => {
 const checkAppLaunchUrl = async () => {
   const { url } = await App.getLaunchUrl();
 
-  console.log('App opened with URL: ' + url);
+  alert('App opened with URL: ' + url);
 };
 ```
 
@@ -92,13 +92,15 @@ const checkAppLaunchUrl = async () => {
 ### exitApp()
 
 ```typescript
-exitApp() => Promise<void>
+exitApp() => never
 ```
 
 Force exit the app. This should only be used in conjunction with the `backButton` handler for Android to
 exit the app when navigation is complete.
 
 Ionic handles this itself so you shouldn't need to call this if using Ionic.
+
+**Returns:** <code>never</code>
 
 **Since:** 1.0.0
 

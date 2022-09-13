@@ -31,19 +31,6 @@ export interface CameraPlugin {
   pickImages(options: GalleryImageOptions): Promise<GalleryPhotos>;
 
   /**
-   * iOS 14+ Only: Allows the user to update their limited photo library selection.
-   *
-   * @since 4.1.0
-   */
-  pickLimitedLibraryPhotos(): Promise<GalleryPhotos>;
-  /**
-   * iOS 14+ Only: Return an array of photos selected from the limited photo library.
-   *
-   * @since 4.1.0
-   */
-  getLimitedLibraryPhotos(): Promise<GalleryPhotos>;
-
-  /**
    * Check camera and photo album permissions
    *
    * @since 1.0.0
@@ -89,17 +76,25 @@ export interface ImageOptions {
    */
   saveToGallery?: boolean;
   /**
-   * The desired maximum width of the saved image. The aspect ratio is respected.
+   * The width of the saved image
    *
    * @since 1.0.0
    */
   width?: number;
   /**
-   * The desired maximum height of the saved image. The aspect ratio is respected.
+   * The height of the saved image
    *
    * @since 1.0.0
    */
   height?: number;
+  /**
+   * This setting has no effect.
+   * Picture resizing always preserve aspect ratio.
+   *
+   * @deprecated will be removed in next major version.
+   * @since 1.0.0
+   */
+  preserveAspectRatio?: boolean;
   /**
    * Whether to automatically rotate the image "up" to correct for orientation
    * in portrait mode
@@ -281,13 +276,13 @@ export interface GalleryImageOptions {
    */
   quality?: number;
   /**
-   * The desired maximum width of the saved image. The aspect ratio is respected.
+   * The width of the saved image
    *
    * @since 1.2.0
    */
   width?: number;
   /**
-   * The desired maximum height of the saved image. The aspect ratio is respected.
+   * The height of the saved image
    *
    * @since 1.2.0
    */
@@ -328,7 +323,7 @@ export enum CameraSource {
    */
   Camera = 'CAMERA',
   /**
-   * Pick an existing photo from the gallery or photo album.
+   * Pick an existing photo fron the gallery or photo album.
    */
   Photos = 'PHOTOS',
 }

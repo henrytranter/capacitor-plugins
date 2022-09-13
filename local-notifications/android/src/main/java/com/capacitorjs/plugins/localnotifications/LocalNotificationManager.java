@@ -22,7 +22,7 @@ import com.getcapacitor.CapConfig;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Logger;
 import com.getcapacitor.PluginCall;
-import com.getcapacitor.PluginConfig;
+import com.getcapacitor.android.R;
 import com.getcapacitor.plugin.util.AssetUtil;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -36,6 +36,7 @@ import org.json.JSONObject;
  */
 public class LocalNotificationManager {
 
+    private static final String CONFIG_KEY_PREFIX = "plugins.LocalNotifications.";
     private static int defaultSoundID = AssetUtil.RESOURCE_ID_ZERO_VALUE;
     private static int defaultSmallIconID = AssetUtil.RESOURCE_ID_ZERO_VALUE;
     // Action constants
@@ -51,13 +52,13 @@ public class LocalNotificationManager {
     private Context context;
     private Activity activity;
     private NotificationStorage storage;
-    private PluginConfig config;
+    private CapConfig config;
 
     public LocalNotificationManager(NotificationStorage notificationStorage, Activity activity, Context context, CapConfig config) {
         storage = notificationStorage;
         this.activity = activity;
         this.context = context;
-        this.config = config.getPluginConfiguration("LocalNotifications");
+        this.config = config;
     }
 
     /**
@@ -222,7 +223,7 @@ public class LocalNotificationManager {
         mBuilder.setSmallIcon(localNotification.getSmallIcon(context, getDefaultSmallIcon(context)));
         mBuilder.setLargeIcon(localNotification.getLargeIcon(context));
 
-        String iconColor = localNotification.getIconColor(config.getString("iconColor"));
+        String iconColor = localNotification.getIconColor(config.getString(CONFIG_KEY_PREFIX + "iconColor"));
         if (iconColor != null) {
             try {
                 mBuilder.setColor(Color.parseColor(iconColor));
@@ -252,11 +253,13 @@ public class LocalNotificationManager {
     private void createActionIntents(LocalNotification localNotification, NotificationCompat.Builder mBuilder) {
         // Open intent
         Intent intent = buildIntent(localNotification, DEFAULT_PRESS_ACTION);
-        int flags = PendingIntent.FLAG_CANCEL_CURRENT;
-        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            flags = flags | PendingIntent.FLAG_MUTABLE;
-        }
-        PendingIntent pendingIntent = PendingIntent.getActivity(context, localNotification.getId(), intent, flags);
+
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+            context,
+            localNotification.getId(),
+            intent,
+            PendingIntent.FLAG_CANCEL_CURRENT
+        );
         mBuilder.setContentIntent(pendingIntent);
 
         // Build action types
@@ -270,7 +273,7 @@ public class LocalNotificationManager {
                     context,
                     localNotification.getId() + notificationAction.getId().hashCode(),
                     actionIntent,
-                    flags
+                    PendingIntent.FLAG_CANCEL_CURRENT
                 );
                 NotificationCompat.Action.Builder actionBuilder = new NotificationCompat.Action.Builder(
                     R.drawable.ic_transparent,
@@ -292,11 +295,7 @@ public class LocalNotificationManager {
         dissmissIntent.putExtra(ACTION_INTENT_KEY, "dismiss");
         LocalNotificationSchedule schedule = localNotification.getSchedule();
         dissmissIntent.putExtra(NOTIFICATION_IS_REMOVABLE_KEY, schedule == null || schedule.isRemovable());
-        flags = 0;
-        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            flags = PendingIntent.FLAG_MUTABLE;
-        }
-        PendingIntent deleteIntent = PendingIntent.getBroadcast(context, localNotification.getId(), dissmissIntent, flags);
+        PendingIntent deleteIntent = PendingIntent.getBroadcast(context, localNotification.getId(), dissmissIntent, 0);
         mBuilder.setDeleteIntent(deleteIntent);
     }
 
@@ -331,11 +330,12 @@ public class LocalNotificationManager {
         Intent notificationIntent = new Intent(context, TimedNotificationPublisher.class);
         notificationIntent.putExtra(NOTIFICATION_INTENT_KEY, request.getId());
         notificationIntent.putExtra(TimedNotificationPublisher.NOTIFICATION_KEY, notification);
-        int flags = PendingIntent.FLAG_CANCEL_CURRENT;
-        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            flags = flags | PendingIntent.FLAG_MUTABLE;
-        }
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(context, request.getId(), notificationIntent, flags);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+            context,
+            request.getId(),
+            notificationIntent,
+            PendingIntent.FLAG_CANCEL_CURRENT
+        );
 
         // Schedule at specific time (with repeating support)
         Date at = schedule.getAt();
@@ -348,7 +348,11 @@ public class LocalNotificationManager {
                 long interval = at.getTime() - new Date().getTime();
                 alarmManager.setRepeating(AlarmManager.RTC, at.getTime(), interval, pendingIntent);
             } else {
-                setExactIfPossible(alarmManager, schedule, at.getTime(), pendingIntent);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && schedule.allowWhileIdle()) {
+                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC, at.getTime(), pendingIntent);
+                } else {
+                    alarmManager.setExact(AlarmManager.RTC, at.getTime(), pendingIntent);
+                }
             }
             return;
         }
@@ -369,31 +373,15 @@ public class LocalNotificationManager {
         if (on != null) {
             long trigger = on.nextTrigger(new Date());
             notificationIntent.putExtra(TimedNotificationPublisher.CRON_KEY, on.toMatchString());
-            pendingIntent = PendingIntent.getBroadcast(context, request.getId(), notificationIntent, flags);
-            setExactIfPossible(alarmManager, schedule, trigger, pendingIntent);
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-            Logger.debug(Logger.tags("LN"), "notification " + request.getId() + " will next fire at " + sdf.format(new Date(trigger)));
-        }
-    }
-
-    private void setExactIfPossible(
-        AlarmManager alarmManager,
-        LocalNotificationSchedule schedule,
-        long trigger,
-        PendingIntent pendingIntent
-    ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && schedule.allowWhileIdle()) {
-                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC, trigger, pendingIntent);
-            } else {
-                alarmManager.set(AlarmManager.RTC, trigger, pendingIntent);
-            }
-        } else {
+            pendingIntent = PendingIntent.getBroadcast(context, request.getId(), notificationIntent, PendingIntent.FLAG_CANCEL_CURRENT);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && schedule.allowWhileIdle()) {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC, trigger, pendingIntent);
             } else {
                 alarmManager.setExact(AlarmManager.RTC, trigger, pendingIntent);
             }
+
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+            Logger.debug(Logger.tags("LN"), "notification " + request.getId() + " will next fire at " + sdf.format(new Date(trigger)));
         }
     }
 
@@ -411,11 +399,7 @@ public class LocalNotificationManager {
 
     private void cancelTimerForNotification(Integer notificationId) {
         Intent intent = new Intent(context, TimedNotificationPublisher.class);
-        int flags = 0;
-        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            flags = PendingIntent.FLAG_MUTABLE;
-        }
-        PendingIntent pi = PendingIntent.getBroadcast(context, notificationId, intent, flags);
+        PendingIntent pi = PendingIntent.getBroadcast(context, notificationId, intent, 0);
         if (pi != null) {
             AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
             alarmManager.cancel(pi);
@@ -444,7 +428,7 @@ public class LocalNotificationManager {
         if (defaultSoundID != AssetUtil.RESOURCE_ID_ZERO_VALUE) return defaultSoundID;
 
         int resId = AssetUtil.RESOURCE_ID_ZERO_VALUE;
-        String soundConfigResourceName = config.getString("sound");
+        String soundConfigResourceName = config.getString(CONFIG_KEY_PREFIX + "sound");
         soundConfigResourceName = AssetUtil.getResourceBaseName(soundConfigResourceName);
 
         if (soundConfigResourceName != null) {
@@ -459,7 +443,7 @@ public class LocalNotificationManager {
         if (defaultSmallIconID != AssetUtil.RESOURCE_ID_ZERO_VALUE) return defaultSmallIconID;
 
         int resId = AssetUtil.RESOURCE_ID_ZERO_VALUE;
-        String smallIconConfigResourceName = config.getString("smallIcon");
+        String smallIconConfigResourceName = config.getString(CONFIG_KEY_PREFIX + "smallIcon");
         smallIconConfigResourceName = AssetUtil.getResourceBaseName(smallIconConfigResourceName);
 
         if (smallIconConfigResourceName != null) {
